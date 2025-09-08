@@ -68,7 +68,9 @@ header.top button.active{background:#1c2a50;color:var(--gold)}
 .ans-row{display:grid; grid-template-columns:1fr 110px auto; gap:8px; margin-top:8px; align-items:center}
 input,textarea,select{width:100%; padding:8px 10px; border-radius:8px; border:1px solid #2a3a70; background:#0f1730; color:var(--text)}
 
-
+.strike-box{text-align:center; margin:10px 0 4px}
+.strike-symbol{font-size:48px; font-weight:900; color:var(--bad); margin:0 6px; opacity:.25; transition:.25s}
+.strike-symbol.active{opacity:1}
 
 .center{text-align:center}
 hr.sep{border:none;height:1px;background:linear-gradient(90deg,transparent,#2a3a70,transparent);margin:12px 0}
@@ -78,6 +80,51 @@ canvas{max-width:700px; margin:12px auto; display:block}
 .details{background:#121a33; padding:12px; border-radius:10px; margin:10px 0}
 
 .small{font-size:12px; color:#94a3ff}
+/* ปุ่มกติกา */
+.rules-btn{
+  background:#121a33;
+  color:var(--gold);
+  border:2px solid var(--gold);
+  padding:6px 12px;
+  border-radius:8px;
+  font-weight:700;
+  cursor:pointer;
+  transition:0.25s;
+}
+.rules-btn:hover{background:#1e2a4a;transform:scale(1.05);}
+
+/* Modal */
+.modal{
+  position:fixed;top:0;left:0;width:100%;height:100%;
+  background:#000000cc;
+  display:flex;justify-content:center;align-items:center;
+  opacity:0;pointer-events:none;
+  transition:opacity 0.3s ease;
+  z-index:1000;
+}
+.modal.show{opacity:1;pointer-events:auto;}
+.modal-content{
+  background:var(--card);color:var(--text);
+  padding:24px;border-radius:16px;
+  width:90%;max-width:850px;max-height:90vh;
+  overflow-y:auto;box-shadow:0 10px 25px rgba(0,0,0,0.5);
+  transform:scale(0.7) translateY(30px);
+  opacity:0;transition:all 0.3s ease;
+}
+.modal.show .modal-content{
+  transform:scale(1) translateY(0);
+  opacity:1;
+}
+.close-btn{
+  background:var(--bad);color:white;
+  padding:8px 16px;border:none;border-radius:8px;
+  cursor:pointer;margin-top:16px;float:right;
+  transition:0.2s;
+}
+.close-btn:hover{opacity:0.85;}  
+  
+  
+  
 </style>
 </head>
 <body>
@@ -88,6 +135,7 @@ canvas{max-width:700px; margin:12px auto; display:block}
   <button id="tab-monitor">Monitor</button>
   <button id="tab-admin">Admin</button>
   <button id="tab-result">Result</button>
+  <button class="rules-btn" onclick="openRules()">📜 กติกาเกม</button>
 </header>
 
 <!-- START VIEW -->
@@ -110,7 +158,15 @@ canvas{max-width:700px; margin:12px auto; display:block}
   <section id="board" class="board"></section>
 
   <!-- Strike system -->
-
+  <div class="strike-box">
+    <span class="strike-symbol" id="s1">❌</span>
+    <span class="strike-symbol" id="s2">❌</span>
+    <span class="strike-symbol" id="s3">❌</span>
+    <div style="margin-top:8px">
+      <button class="btn red" id="btnStrike">➕ Strike</button>
+      <button class="btn ghost" id="btnResetStrike">รีเซ็ต Strike</button>
+    </div>
+  </div>
 
   <section class="scoreboard">
     <div class="team">
@@ -195,6 +251,75 @@ canvas{max-width:700px; margin:12px auto; display:block}
     <button class="btn red" id="btnPlayAgain">🔄 เล่นใหม่</button>
   </div>
 </main>
+  
+  
+  
+  
+<!-- ============ Modal กติกา ============ -->
+<div id="rulesModal" class="modal">
+  <div class="modal-content">
+    <h2>📜 กติกาเกม เวียง สี่ต่อ สี่</h2>
+    <p>
+      เกมโชว์ที่แข่งขันกันระหว่าง <b>2 ทีม ทีมละ 4 คน</b> (ทีม A และทีม B)<br>
+      เป้าหมายคือการ <b>หาคำตอบที่มีผู้โหวตสูงสุด</b> เพื่อสะสมคะแนน และชิงชัยใน <b>รอบชี้ชะตา</b>
+    </p>
+
+    <h3>🎯 การเริ่มรอบ (Face-off)</h3>
+    <ul>
+      <li>Host อ่านคำถามและแสดงบน Monitor Page</li>
+      <li>ตัวแทนทีม A และ B ยกมือเพื่อแย่งสิทธิ์ตอบก่อน</li>
+      <li>ทีมที่ยกมือเร็วกว่าต้องตอบ 1 คำตอบ</li>
+      <ul>
+        <li>ถ้าตอบถูกและเป็น <b>คำตอบอันดับ 1</b> → ทีมที่ยกมือก่อน <b>เลือกได้</b> ว่าจะเล่นเองหรือโยนสิทธิ์</li>
+        <li>ถ้าตอบถูกแต่ <b>ไม่ใช่อันดับ 1</b> → ทีมตรงข้ามได้สิทธิ์ตอบอีกคำตอบ
+          <ul>
+            <li>ถ้าทีมตรงข้ามตอบได้ <b>คะแนนสูงกว่า</b> → ทีมตรงข้ามเลือกว่าจะเล่นเองหรือโยน</li>
+            <li>ถ้าทีมตรงข้ามตอบได้ <b>คะแนนต่ำกว่า</b> → ทีมที่ยกมือก่อนเลือกว่าจะเล่นเองหรือโยน</li>
+          </ul>
+        </li>
+      </ul>
+    </ul>
+
+    <h3>📝 การเล่นเกม (Main Round)</h3>
+    <ul>
+      <li>ทีมที่ได้สิทธิ์เล่น ต้องตอบคำตอบบนกระดานทีละข้อ</li>
+      <li>✅ ตอบถูก → Host เปิดการ์ดและบวกคะแนนตามจำนวนโหวต</li>
+      <li>❌ ตอบผิด → ขึ้นข้อความ <b>“ส่งให้ทีมตรงข้ามเล่น”</b></li>
+    </ul>
+
+    <h3>❌ การผิดพลาด (Strike / Wrong Answer)</h3>
+    <ul>
+      <li>แต่ละทีมตอบผิดได้เพียง <b>1 ครั้ง</b></li>
+      <li>ถ้าทีมใดตอบผิดครั้งที่ <b>2</b> → สิทธิ์การเล่นส่งต่อให้อีกทีมทันที</li>
+      <li>ถ้า <b>ทั้งสองทีมรวมกันผิดครบ 3 ครั้ง</b> → เข้าสู่ <b>Decisive Round</b></li>
+      <li>🆕 เมื่อ <b>เปลี่ยนไปยังคำถามใหม่</b> → <b>รีเซ็ตจำนวน Strike ของทั้งสองทีมกลับเป็นศูนย์</b></li>
+    </ul>
+
+    <h3>⚡ Decisive Round (รอบชี้ชะตา)</h3>
+    <ul>
+      <li>ทีมที่ได้สิทธิ์ในรอบนี้ ต้องเลือกคำตอบที่ยังไม่ถูกเปิด</li>
+      <li>✅ ถ้าตอบถูก → ได้ <b>คะแนนรวมที่เหลือ ×3</b> และรีเซ็ต Strike พร้อมสิทธิ์เล่นต่อ</li>
+      <li>❌ ถ้าตอบผิด → ทีมตรงข้ามจะได้ <b>คะแนนรวมที่เหลือ ×2</b></li>
+    </ul>
+
+    <h3>⏱️ ระบบเวลา (Timer)</h3>
+    <ul>
+      <li>ก่อนตอบ Host ตั้งเวลานับถอยหลัง (10–30 วินาที)</li>
+      <li>ถ้าหมดเวลาโดยไม่ตอบ → นับเป็น <b>ผิด 1 ครั้ง</b> และสิทธิ์ส่งต่อให้อีกทีม</li>
+    </ul>
+
+    <h3>🏆 การสิ้นสุดเกม (End Game)</h3>
+    <ul>
+      <li>รอบจบเมื่อคำตอบบนกระดานถูกเปิดครบ หรือหมดเวลาที่กำหนด</li>
+      <li>เข้าสู่ Result Page → แสดงคะแนนรวม, กราฟสถิติ และประกาศ <b>ทีมผู้ชนะ</b> พร้อมถ้วยรางวัล</li>
+    </ul>
+
+    <button class="close-btn" onclick="closeRules()">ปิด</button>
+  </div>
+</div>    
+  
+  
+  
 
 <script>
 /* ================== State & Persistence ================== */
@@ -272,6 +397,13 @@ $("btnResetGame").onclick = ()=>{
 
 
 /* ================== STRIKE system ================== */
+function updateStrikes(){
+  for(let i=1;i<=3;i++) $("s"+i).classList.toggle("active", i<=strikes);
+}
+$("btnStrike").onclick = ()=>{
+  if(strikes < 3){ strikes++; updateStrikes(); if(strikes===3) alert("3 STRIKES! และเข้าสู่ decisive round "); }
+};
+$("btnResetStrike").onclick = ()=>{ strikes = 0; updateStrikes(); };
 
 /* ================== ADMIN ================== */
 function renderAdmin(){
@@ -508,7 +640,12 @@ function exportStats(){
   a.href = url; a.download = "wiang-4x4-stats.json"; a.click();
   URL.revokeObjectURL(url);
 }
-
+function openRules(){
+  document.getElementById("rulesModal").classList.add("show");
+}
+function closeRules(){
+  document.getElementById("rulesModal").classList.remove("show");
+}
 /* ================== Utils ================== */
 function varCSS(name){ return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
 function escapeHTML(s){ return (s||"").replace(/[&<>"']/g, m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m])); }
