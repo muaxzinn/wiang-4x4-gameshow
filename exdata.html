@@ -1,0 +1,768 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>เวียง สี่ต่อ สี่ — Game Show (Merged)</title>
+
+<!-- Fonts + Chart -->
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;600;700;900&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+:root{
+  --bg:#0b1020; --card:#121a33; --gold:#ffd700; --green:#22c55e; --blue:#3b82f6;
+  --text:#eaf0ff; --dim:#c6d3ff88; --border:#23305a; --bad:#ef4444;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:"Noto Sans Thai",system-ui,-apple-system,Segoe UI,Roboto,Thonburi,sans-serif}
+
+header.top{
+  position:sticky; top:0; z-index:20;
+  background:#0b1020; border-bottom:1px solid var(--border);
+  display:flex; gap:8px; padding:10px; align-items:center; flex-wrap:wrap;
+}
+header.top .brand{font-weight:900;color:var(--gold);letter-spacing:.3px;margin-right:6px}
+header.top button{
+  padding:6px 12px; border:none; border-radius:8px; background:#142045; color:#9fb1ff; cursor:pointer; font-weight:700;
+}
+header.top button.active{background:#1c2a50;color:var(--gold)}
+
+.view{display:none; padding:16px}
+.view.show{display:block}
+
+.title{text-align:center;font-size:clamp(28px,6vw,56px);color:var(--gold);font-weight:900;margin:16px 0;text-shadow:0 3px 8px rgba(0,0,0,.35)}
+.meta{text-align:center;color:var(--dim);margin-bottom:8px}
+
+.question{
+  font-size:clamp(20px,3.5vw,36px); text-align:center;
+  margin:14px auto; padding:14px; border:2px solid var(--border); border-radius:16px;
+  max-width:900px; background:#121a33;
+}
+
+.board{display:grid; gap:14px; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); max-width:1000px; margin:16px auto}
+.card{perspective:1000px; cursor:pointer}
+.inner{position:relative; height:110px; transition:transform .6s; transform-style:preserve-3d}
+.card.revealed .inner{transform:rotateY(180deg)}
+.side{position:absolute; inset:0; display:flex; justify-content:center; align-items:center; border-radius:14px; backface-visibility:hidden; padding:10px}
+.front{background:#0f1733; color:var(--gold); font-weight:900; font-size:28px}
+.back{background:#0f2a2a; color:var(--green); transform:rotateY(180deg); font-weight:800; font-size:20px; flex-direction:column}
+
+.scoreboard{display:grid; grid-template-columns:1fr 1fr; gap:14px; max-width:1000px; margin:12px auto}
+.team{background:#121a33; padding:12px; border-radius:14px}
+.team h3{margin:0 0 8px; color:var(--gold)}
+.score{font-size:clamp(32px,6vw,60px); font-weight:900; color:var(--green)}
+.controls{display:flex; gap:8px; flex-wrap:wrap; margin-top:6px}
+.btn{padding:8px 12px; border:none; border-radius:8px; cursor:pointer; font-weight:700}
+.btn.gold{background:#3a2a05; color:var(--gold)}
+.btn.green{background:#0f2a1b; color:#bdf9cc}
+.btn.red{background:#3a0f0f; color:var(--bad)}
+.btn.ghost{background:#0f1733; color:#9fb1ff; border:1px solid #2a3a70}
+
+.seg{display:inline-flex; border:1px solid #2a3a70; border-radius:8px; overflow:hidden}
+.seg button{padding:8px 12px; background:#0f1733; color:#9fb1ff; border:none; cursor:pointer; font-weight:800}
+.seg button.active{background:#1b2a58; color:var(--gold)}
+
+.panel{background:#121a33; padding:14px; border-radius:14px; margin:14px 0}
+.panel h2{margin:0 0 10px; color:var(--gold)}
+.ans-row{display:grid; grid-template-columns:1fr 110px auto; gap:8px; margin-top:8px; align-items:center}
+input,textarea,select{width:100%; padding:8px 10px; border-radius:8px; border:1px solid #2a3a70; background:#0f1730; color:var(--text)}
+
+.strike-box{text-align:center; margin:10px 0 4px}
+.strike-symbol{font-size:48px; font-weight:900; color:var(--bad); margin:0 6px; opacity:.25; transition:.25s}
+.strike-symbol.active{opacity:1}
+
+.center{text-align:center}
+hr.sep{border:none;height:1px;background:linear-gradient(90deg,transparent,#2a3a70,transparent);margin:12px 0}
+
+.result-grid{display:grid; grid-template-columns:1fr; gap:16px; max-width:1100px; margin:0 auto}
+canvas{max-width:700px; margin:12px auto; display:block}
+.details{background:#121a33; padding:12px; border-radius:10px; margin:10px 0}
+  
+  
+  
+@keyframes blink {
+  0%, 100% { color: var(--bad); }
+  50% { color: var(--gold); }
+}
+
+#strikeMessage {
+  margin-top:10px;
+  font-size:22px;
+  font-weight:900;
+  text-align:center;
+  min-height:28px;
+}
+
+#strikeMessage.blink {
+  animation: blink 0.6s infinite;
+}
+  
+  
+  
+
+.small{font-size:12px; color:#94a3ff}
+/* ปุ่มกติกา */
+.rules-btn{
+  background:#121a33;
+  color:var(--gold);
+  border:2px solid var(--gold);
+  padding:6px 12px;
+  border-radius:8px;
+  font-weight:700;
+  cursor:pointer;
+  transition:0.25s;
+}
+.rules-btn:hover{background:#1e2a4a;transform:scale(1.05);}
+
+/* Modal */
+.modal{
+  position:fixed;top:0;left:0;width:100%;height:100%;
+  background:#000000cc;
+  display:flex;justify-content:center;align-items:center;
+  opacity:0;pointer-events:none;
+  transition:opacity 0.3s ease;
+  z-index:1000;
+}
+.modal.show{opacity:1;pointer-events:auto;}
+.modal-content{
+  background:var(--card);color:var(--text);
+  padding:24px;border-radius:16px;
+  width:90%;max-width:850px;max-height:90vh;
+  overflow-y:auto;box-shadow:0 10px 25px rgba(0,0,0,0.5);
+  transform:scale(0.7) translateY(30px);
+  opacity:0;transition:all 0.3s ease;
+}
+.modal.show .modal-content{
+  transform:scale(1) translateY(0);
+  opacity:1;
+}
+.close-btn{
+  background:var(--bad);color:white;
+  padding:8px 16px;border:none;border-radius:8px;
+  cursor:pointer;margin-top:16px;float:right;
+  transition:0.2s;
+}
+.close-btn:hover{opacity:0.85;}  
+  
+  
+  
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="brand">เวียง สี่ต่อ สี่</div>
+  <button id="tab-start" class="active">Start</button>
+  <button id="tab-monitor">Monitor</button>
+  <button id="tab-admin">Admin</button>
+  <button id="tab-result">Result</button>
+  <button class="rules-btn" onclick="openRules()">📜 กติกาเกม</button>
+</header>
+
+<!-- START VIEW -->
+<main id="start" class="view show">
+  <h1 class="title">เริ่มเกมใหม่</h1>
+  <div class="center">
+    <p class="small">ตั้งค่าทีมและคำถามในหน้า <b>Admin</b> จากนั้นกดเริ่มเกม</p>
+    <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:10px">
+      <button class="btn green" id="btnStartGame">▶ เริ่มเกม</button>
+      <button class="btn red" id="btnResetGame">🔄 รีเซ็ตเกม (ล้างข้อมูล)</button>
+    </div>
+  </div>
+</main>
+
+<!-- MONITOR VIEW -->
+<main id="monitor" class="view">
+  <h1 class="title">เวียง สี่ต่อ สี่</h1>
+  <div class="meta">รอบที่ <b id="roundNo">1</b> / <span id="roundTotal">4</span> — ตัวคูณ: <b id="multLabel">x1</b></div>
+  <div id="questionText" class="question">กรุณากรอกคำถามในหน้า Admin</div>
+  <section id="board" class="board"></section>
+
+<div class="strike-box">
+  <span class="strike-symbol" id="s1">❌</span>
+  <span class="strike-symbol" id="s2">❌</span>
+  <span class="strike-symbol" id="s3">❌</span>
+  <div style="margin-top:8px">
+    <button class="btn red" id="btnStrike">➕ Strike</button>
+    <button class="btn ghost" id="btnResetStrike">รีเซ็ต Strike</button>
+  </div>
+  <!-- ✅ กล่องข้อความแจ้งเตือน -->
+  <div id="strikeMessage"></div>
+</div>
+
+  <section class="scoreboard">
+    <div class="team">
+      <h3>ทีม A: <span id="teamAName">ทีม A</span></h3>
+      <div class="score" id="scoreA">0</div>
+      <div>คะแนนล่าสุด: <b id="lastPtsA">0</b> × <b id="multA">1</b></div>
+      <div class="controls">
+        <button class="btn green" id="addA">+ เพิ่มตามช่องล่าสุด</button>
+        <button class="btn red" id="subA">– ลบตามช่องล่าสุด</button>
+      </div>
+    </div>
+    <div class="team">
+      <h3>ทีม B: <span id="teamBName">ทีม B</span></h3>
+      <div class="score" id="scoreB">0</div>
+      <div>คะแนนล่าสุด: <b id="lastPtsB">0</b> × <b id="multB">1</b></div>
+      <div class="controls">
+        <button class="btn green" id="addB">+ เพิ่มตามช่องล่าสุด</button>
+        <button class="btn red" id="subB">– ลบตามช่องล่าสุด</button>
+      </div>
+    </div>
+  </section>
+
+  <div class="center" style="margin:10px 0">
+    <div id="multSeg" class="seg">
+      <button data-m="1" class="active">x1</button>
+      <button data-m="2">x2</button>
+      <button data-m="3">x3</button>
+    </div>
+  </div>
+
+  <div class="center" style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+    <button class="btn gold" id="prevQ">⟵ ย้อนกลับ</button>
+    <button class="btn gold" id="nextQ">ถัดไป ⟶</button>
+    <button class="btn ghost" id="resetBoard">รีเซ็ตกระดาน</button>
+    <button class="btn green" id="finishGame">จบเกม & ดูผล</button>
+  </div>
+  <p class="small center">หมายเหตุ: เมื่อทีมหนึ่งบวกคะแนนของการ์ดใบใดแล้ว ทีมอีกฝั่งจะไม่สามารถบวกการ์ดใบนั้นซ้ำได้</p>
+</main>
+
+<!-- ADMIN VIEW -->
+<main id="admin" class="view">
+  <h1 class="title">ตั้งค่าเกม</h1>
+  <div class="panel">
+    <h2>ชื่อทีม</h2>
+    <label>ทีม A <input id="inTeamA" type="text" placeholder="เช่น ทีมโรงเรียน A"></label>
+    <label>ทีม B <input id="inTeamB" type="text" placeholder="เช่น ทีมโรงเรียน B"></label>
+  </div>
+
+  <div id="questions"></div>
+  <div class="center" style="margin-top:6px">
+    <button class="btn green" id="addRound">➕ เพิ่มรอบ</button>
+  </div>
+
+  <hr class="sep" />
+
+  <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">
+    <button class="btn ghost" id="loadData">ดึงข้อมูลเก่า</button>
+    <button class="btn green" id="saveData">บันทึกข้อมูล</button>
+    <button class="btn red" id="clearData">รีเซ็ตข้อมูล (ล้าง localStorage)</button>
+  </div>
+</main>
+
+<!-- RESULT VIEW -->
+<main id="result" class="view">
+  <h1 class="title">ผลการแข่งขัน</h1>
+  <div id="winner" class="center" style="font-size:28px;color:var(--gold);margin:10px 0">🏆 ผู้ชนะคือ ...</div>
+
+  <section class="result-grid">
+    <canvas id="chartTotal"></canvas>
+    <canvas id="chartA"></canvas>
+    <canvas id="chartB"></canvas>
+
+    <div class="center" style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+      <button class="btn green" id="btnShowA">รายละเอียดทีม A</button>
+      <button class="btn green" id="btnShowB">รายละเอียดทีม B</button>
+      <button class="btn gold" id="btnExport">ส่งออกสถิติ (JSON)</button>
+    </div>
+    <div id="teamDetails"></div>
+  </section>
+
+  <div class="center" style="margin-top:14px">
+    <button class="btn red" id="btnPlayAgain">🔄 เล่นใหม่</button>
+  </div>
+</main>
+  
+  
+  
+  
+<<!-- ============ Modal กติกา ============ -->
+<div id="rulesModal" class="modal">
+  <div class="modal-content">
+    <h2>📜 กติกาเกม เวียง สี่ต่อ สี่</h2>
+    <p>
+      เกมโชว์ที่แข่งขันกันระหว่าง <b>2 ทีม ทีมละ 4 คน</b> (ทีม A และทีม B)<br>
+      เป้าหมายคือการ <b>หาคำตอบที่มีผู้โหวตสูงสุด</b> เพื่อสะสมคะแนน และชิงชัยใน <b>รอบชี้ชะตา</b>
+    </p>
+
+    <h3>🎯 การเริ่มรอบ (Face-off)</h3>
+    <ul>
+      <li>Host อ่านคำถามและแสดงบน Monitor Page</li>
+      <li>ตัวแทนทีม A และ B ยกมือเพื่อแย่งสิทธิ์ตอบก่อน</li>
+      <li>ทีมที่ยกมือเร็วกว่าต้องตอบ 1 คำตอบ</li>
+      <ul>
+        <li>ถ้า <b>คำตอบอยู่ในกระดานและเป็นอันดับ 1</b>  
+          → ทีมที่ยกมือก่อนจะได้สิทธิ์เริ่มเล่นก่อน</li>
+        <li>ถ้า <b>คำตอบอยู่ในกระดานแต่ไม่ใช่อันดับ 1</b>  
+          → ทีมตรงข้ามมีโอกาสตอบอีกคำตอบ
+          <ul>
+            <li>ถ้าทีมตรงข้ามตอบได้ <b>คำตอบที่คะแนนสูงกว่า</b> → ทีมตรงข้ามจะได้สิทธิ์เล่นก่อน</li>
+            <li>ถ้าทีมตรงข้ามตอบได้ <b>คะแนนต่ำกว่า</b> หรือไม่อยู่ในกระดาน → ทีมที่ยกมือก่อนจะได้สิทธิ์เล่น</li>
+          </ul>
+        </li>
+        <li>ถ้า <b>คำตอบไม่อยู่ในกระดาน</b> → นับเป็น “ผิด 1 ครั้ง” และสิทธิ์จะถูกส่งให้อีกทีมตอบ</li>
+      </ul>
+    </ul>
+
+    <h3>📝 การเล่นเกม (Main Round)</h3>
+    <ul>
+      <li>ทีมที่ได้สิทธิ์เล่น ต้องตอบคำตอบบนกระดานทีละข้อ</li>
+      <li>✅ <b>ถ้าคำตอบอยู่ในกระดาน</b> → Host เปิดการ์ด และบวกคะแนนตามจำนวนโหวตให้ทีมนั้น</li>
+      <li>❌ <b>ถ้าคำตอบไม่อยู่ในกระดาน</b> → นับเป็น “ผิด 1 ครั้ง” และขึ้นข้อความ <b>“ส่งให้ทีมตรงข้ามเล่น”</b></li>
+    </ul>
+
+    <h3>❌ การผิดพลาด (Strike / Wrong Answer)</h3>
+    <ul>
+      <li>แต่ละทีมตอบผิดได้เพียง <b>1 ครั้ง</b></li>
+      <li>ถ้าทีมใดผิดครั้งที่ <b>2</b> → สิทธิ์การเล่นส่งต่อให้อีกทีมทันที</li>
+      <li>ถ้า <b>ทั้งสองทีมรวมกันผิดครบ 3 ครั้ง</b> → เข้าสู่ <b>Decisive Round</b></li>
+      <li>🆕 เมื่อ <b>เปลี่ยนไปยังคำถามใหม่</b> → <b>รีเซ็ตจำนวน Strike ของทั้งสองทีมกลับเป็นศูนย์</b></li>
+    </ul>
+
+    <h3>⚡ Decisive Round (รอบชี้ชะตา)</h3>
+    <ul>
+      <li>ทีมที่ได้สิทธิ์ในรอบนี้ ต้องเลือกคำตอบที่ยังไม่ถูกเปิดบนกระดาน</li>
+      <li>✅ ถ้า <b>คำตอบอยู่ในกระดาน</b> → ได้ <b>คะแนนรวมที่เหลือ ×3</b> และรีเซ็ต Strike พร้อมสิทธิ์เล่นต่อ</li>
+      <li>❌ ถ้า <b>คำตอบไม่อยู่ในกระดาน</b> → ทีมตรงข้ามจะได้ <b>คะแนนรวมที่เหลือ ×2</b></li>
+    </ul>
+
+    <h3>⏱️ ระบบเวลา (Timer)</h3>
+    <ul>
+      <li>ก่อนตอบ Host ตั้งเวลานับถอยหลัง (10–30 วินาที)</li>
+      <li>ถ้าหมดเวลาโดยไม่ตอบ → นับเป็น <b>ผิด 1 ครั้ง</b> และสิทธิ์ส่งต่อให้อีกทีม</li>
+    </ul>
+
+    <h3>🏆 การสิ้นสุดเกม (End Game)</h3>
+    <ul>
+      <li>รอบจบเมื่อคำตอบบนกระดานถูกเปิดครบ หรือหมดเวลาที่กำหนด</li>
+      <li>เข้าสู่ Result Page → แสดงคะแนนรวม, กราฟสถิติ และประกาศ <b>ทีมผู้ชนะ</b> พร้อมถ้วยรางวัล</li>
+    </ul>
+
+    <button class="close-btn" onclick="closeRules()">ปิด</button>
+  </div>
+</div>
+  
+  
+  
+
+<script>
+/* ================== State & Persistence ================== */
+const STORAGE_KEY = "ws44_data";
+let data   = { teams:{A:"ทีม A", B:"ทีม B"}, rounds:[] };
+let roundIndex = 0;
+let multiplier = 1;
+let lastPts = 0;
+let lastCard = null;  // {id, answer, points, rank}
+let usedCards = {};   // { cardId: "A"|"B" }
+let scores = {A:0, B:0};
+let strikes = 0;
+let stats = [];       // [{team, round, answer, points, m, total, cardId, rank}]
+
+const $ = id => document.getElementById(id);
+
+function initData(){
+  const raw = localStorage.getItem(STORAGE_KEY);
+  if(raw){
+    try{ data = JSON.parse(raw) || data; } catch(e){}
+  }
+  if(!data.rounds) data.rounds = [];
+
+  if(data.rounds.length === 0){
+    data.rounds = [
+      {
+        question: "🍴 คนส่วนใหญ่มักจะกินอะไรตอนเที่ยง?",
+        answers: [
+          { text: "ไก่กรอบ", points: 120 },
+          { text: "ก๋วยเตี๋ยว", points: 69 },
+          { text: "ไก่ทอดกระเทียม", points: 48 },
+          { text: "กะเพรา", points: 24 },
+          { text: "ผัดเผ็ดปลาดุก", points: 21 },
+          { text: "ข้าวไก่แดง", points: 9 },
+          { text: "ข้าวหมกไก่ทอด", points: 3 },
+          { text: "ตูมิห์ไก่", points: 3 }
+        ]
+      },
+      {
+        question: "🏫 ถ้าพูดถึงเวียงสุวรรณ… คนส่วนใหญ่มักจะอยากให้พัฒนาอะไรเพิ่มเติม?",
+        answers: [
+          { text: "โรงอาหาร", points: 131 },
+          { text: "ห้องน้ำ", points: 68 },
+          { text: "อาคารละหมาด", points: 53 },
+          { text: "ระบบความปลอดภัยในโรงเรียน", points: 14 },
+          { text: "กิจกรรมสร้างผลงานให้นักเรียน", points: 14 },
+          { text: "จุดบริการน้ำดื่ม", points: 5 },
+          { text: "สหกรณ์/ร้านค้า", points: 5 }
+        ]
+      },
+      {
+        question: "🏗️ ถ้าโรงเรียนได้งบไม่จำกัด… คนส่วนใหญ่อยากให้สร้างอะไรขึ้นมาเป็นอย่างแรก?",
+        answers: [
+          { text: "ห้องทดลองวิทยาศาสตร์และเทคโนโลยี", points: 143 },
+          { text: "สนามกีฬา (ฟุตบอล, บาสเก็ตบอล)", points: 75 },
+          { text: "อาคารอเนกประสงค์ (กีฬา/ประชุม)", points: 53 },
+          { text: "สวนพักผ่อน/พื้นที่สีเขียว", points: 18 },
+          { text: "ลานจอดรถ", points: 12 },
+          { text: "ห้องศิลปะ/ห้องดนตรี", points: 6 }
+        ]
+      },
+      {
+        question: "🎉 ถ้าโรงเรียนจะจัดงานพิเศษ… คนส่วนใหญ่อยากได้งานแบบไหนมากที่สุด?",
+        answers: [
+          { text: "แฟร์มิลี่เดย์", points: 135 },
+          { text: "งานประกวดดาวเดือน", points: 99 },
+          { text: "งานจิบกาแฟแลคนเวียง", points: 26 },
+          { text: "งานวิชาการ (นิทรรศการโครงงาน)", points: 23 },
+          { text: "งานกีฬาสี (แข่งขันกีฬาภายใน)", points: 9 },
+          { text: "งานเลี้ยงส่ง/ปัจฉิมนิเทศ", points: 6 },
+          { text: "งานวัฒนธรรม (การแสดงพื้นถิ่น/การรำ)", points: 3 }
+        ]
+      }
+    ];
+  }
+}
+initData();
+
+/* ================== Navigation ================== */
+function switchView(name){
+  document.querySelectorAll(".view").forEach(v=>v.classList.remove("show"));
+  document.querySelectorAll("header.top button").forEach(b=>b.classList.remove("active"));
+  $(name).classList.add("show");
+  $("tab-"+name).classList.add("active");
+  if(name === "monitor") renderMonitor();
+  else if(name === "admin") renderAdmin();
+  else if(name === "result") renderResult();
+}
+$("tab-start").onclick  = ()=>switchView("start");
+$("tab-monitor").onclick= ()=>switchView("monitor");
+$("tab-admin").onclick  = ()=>switchView("admin");
+$("tab-result").onclick = ()=>switchView("result");
+
+/* ================== START view actions ================== */
+$("btnStartGame").onclick = ()=>{
+  // runtime reset (ไม่ล้างคำถาม)
+  scores = {A:0,B:0};
+  usedCards = {};
+  stats = [];
+  roundIndex = 0;
+  strikes = 0;
+  lastPts = 0;
+  lastCard = null;
+  multiplier = 1;
+  switchView("monitor");
+};
+$("btnResetGame").onclick = ()=>{
+  if(confirm("ต้องการรีเซ็ตคะแนนและสถานะเกมหรือไม่? (ข้อมูลทีมและคำถามจะยังอยู่)")){
+    // รีเซ็ตเฉพาะคะแนนและสถานะการเล่น
+    scores = {A:0, B:0};
+    usedCards = {};
+    stats = [];
+    roundIndex = 0;
+    strikes = 0;
+    lastPts = 0;
+    lastCard = null;
+    multiplier = 1;
+    renderAdmin();     // แสดงข้อมูลทีม/คำถามที่ยังอยู่
+    renderMonitor();   // รีเฟรชหน้าจอ Monitor
+    switchView("start"); 
+    alert("✅ รีเซ็ตคะแนนเรียบร้อยแล้ว (ข้อมูลทีมและคำถามยังอยู่)");
+  }
+};
+
+
+/* ================== STRIKE system ================== */
+function updateStrikes(){
+  for(let i=1;i<=3;i++){
+    $("s"+i).classList.toggle("active", i<=strikes);
+  }
+}
+
+// ฟังก์ชันสำหรับโชว์ข้อความเมื่อกด strike
+function showStrikeMessage(text, blinking=false){
+  const msg = $("strikeMessage");
+  msg.textContent = text;
+  if(blinking){
+    msg.classList.add("blink");
+  } else {
+    msg.classList.remove("blink");
+  }
+  // ถ้าไม่ใช่ข้อความ "3 STRIKES" → ให้หายไปเองใน 3 วิ
+  if(text !== "⚡ 3 STRIKES! เข้าสู่รอบชี้ชะตา"){
+    setTimeout(()=>{
+      msg.textContent="";
+      msg.classList.remove("blink");
+    },60000);
+  }
+}
+
+$("btnStrike").onclick = ()=>{
+  if(strikes < 3){
+    strikes++;
+    updateStrikes();
+    if(strikes === 3){
+      showStrikeMessage("⚡ 3 STRIKES! เข้าสู่รอบชี้ชะตา", true);
+    } else {
+      showStrikeMessage("👉 ส่งให้ทีมตรงข้ามเล่น", true);
+    }
+  }
+};
+
+$("btnResetStrike").onclick = ()=>{
+  strikes = 0;
+  updateStrikes();
+  showStrikeMessage("", false); // ลบข้อความออก
+};
+
+/* ================== ADMIN ================== */
+function renderAdmin(){
+  $("inTeamA").value = data.teams.A || "ทีม A";
+  $("inTeamB").value = data.teams.B || "ทีม B";
+  const qwrap = $("questions");
+  qwrap.innerHTML = "";
+  data.rounds.forEach((r,ri)=>{
+    const box = document.createElement("div");
+    box.className = "panel";
+    box.innerHTML = `
+      <h2>รอบที่ ${ri+1}</h2>
+      <label>คำถาม
+        <textarea data-ri="${ri}" class="qtext" placeholder="พิมพ์คำถามของรอบนี้">${r.question||""}</textarea>
+      </label>
+      <div id="ansbox-${ri}"></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+        <button class="btn green addAns" data-ri="${ri}">➕ เพิ่มคำตอบ</button>
+        <button class="btn red delRound" data-ri="${ri}">🗑 ลบรอบนี้</button>
+      </div>
+    `;
+    qwrap.appendChild(box);
+    renderAnsBox(ri);
+  });
+}
+function renderAnsBox(ri){
+  const box = $("ansbox-"+ri);
+  const arr = data.rounds[ri].answers||[];
+  box.innerHTML = arr.map((a,ai)=>`
+    <div class="ans-row">
+      <input type="text" data-ri="${ri}" data-ai="${ai}" class="ansText" placeholder="คำตอบ #${ai+1}" value="${a.text||""}">
+      <input type="number" data-ri="${ri}" data-ai="${ai}" class="ansPts" value="${a.points||0}">
+      <button class="btn red delAns" data-ri="${ri}" data-ai="${ai}">x</button>
+    </div>
+  `).join("");
+}
+/* bindings */
+document.body.addEventListener("input", (e)=>{
+  if(e.target.id==="inTeamA"){ data.teams.A = e.target.value||"ทีม A"; }
+  if(e.target.id==="inTeamB"){ data.teams.B = e.target.value||"ทีม B"; }
+  if(e.target.classList.contains("qtext")){
+    const ri = +e.target.dataset.ri;
+    data.rounds[ri].question = e.target.value;
+  }
+  if(e.target.classList.contains("ansText")){
+    const {ri,ai} = e.target.dataset;
+    data.rounds[ri].answers[ai].text = e.target.value;
+  }
+  if(e.target.classList.contains("ansPts")){
+    const {ri,ai} = e.target.dataset;
+    data.rounds[ri].answers[ai].points = parseInt(e.target.value)||0;
+  }
+});
+document.body.addEventListener("click", (e)=>{
+  if(e.target.classList.contains("addAns")){
+    const ri = +e.target.dataset.ri;
+    (data.rounds[ri].answers ||= []).push({text:"",points:0});
+    renderAdmin();
+  }
+  if(e.target.classList.contains("delAns")){
+    const {ri,ai} = e.target.dataset;
+    data.rounds[ri].answers.splice(ai,1);
+    renderAdmin();
+  }
+  if(e.target.classList.contains("delRound")){
+    const ri = +e.target.dataset.ri;
+    if(confirm("ลบรอบนี้?")){ data.rounds.splice(ri,1); renderAdmin(); }
+  }
+});
+$("addRound").onclick = ()=>{ data.rounds.push({question:"",answers:[]}); renderAdmin(); };
+$("saveData").onclick = ()=>{ localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); alert("✅ บันทึกข้อมูลแล้ว"); };
+$("loadData").onclick = ()=>{ initData(); renderAdmin(); alert("ดึงข้อมูลแล้ว"); };
+$("clearData").onclick = ()=>{
+  if(confirm("ล้างข้อมูลทั้งหมดจาก localStorage?")){
+    localStorage.removeItem(STORAGE_KEY);
+    data = { teams:{A:"ทีม A", B:"ทีม B"}, rounds:[] }; initData(); renderAdmin();
+  }
+};
+
+/* ================== MONITOR (play) ================== */
+function renderMonitor(){
+  $("teamAName").textContent = data.teams.A || "ทีม A";
+  $("teamBName").textContent = data.teams.B || "ทีม B";
+  $("roundTotal").textContent = data.rounds.length;
+  if(roundIndex >= data.rounds.length) roundIndex = data.rounds.length-1;
+  if(roundIndex < 0) roundIndex = 0;
+  $("roundNo").textContent = roundIndex + 1;
+
+  const r = data.rounds[roundIndex] || {question:"",answers:[]};
+  $("questionText").textContent = r.question || "— ยังไม่มีคำถาม —";
+
+  const sorted = [...(r.answers||[])]
+        .map((a,i)=>({...a, id:`${roundIndex}-${i}`}))
+        .sort((a,b)=>b.points - a.points);
+
+  const board = $("board"); board.innerHTML = "";
+  sorted.forEach((a,rankIdx)=>{
+    const card = document.createElement("div");
+    card.className = "card";
+    card.innerHTML = `
+      <div class="inner">
+        <div class="side front">${rankIdx+1}</div>
+        <div class="side back"><div>${a.text||"(ว่าง)"}</div><div>+ ${a.points||0} คะแนน</div></div>
+      </div>
+    `;
+    card.onclick = ()=>{
+      if(!card.classList.contains("revealed")){
+        card.classList.add("revealed");
+        lastPts = a.points||0;
+        lastCard = { id:`${roundIndex}-${rankIdx}`, answer:a.text||"", points:a.points||0, rank:rankIdx+1 };
+        $("lastPtsA").textContent = lastPts;
+        $("lastPtsB").textContent = lastPts;
+        $("multA").textContent = multiplier;
+        $("multB").textContent = multiplier;
+      }
+    };
+    board.appendChild(card);
+  });
+
+  // reset per-round helpers
+  strikes = 0; updateStrikes();
+  lastPts = 0; lastCard = null;
+  $("lastPtsA").textContent = "0"; $("lastPtsB").textContent = "0";
+  $("multLabel").textContent = "x"+multiplier;
+  $("multA").textContent = multiplier; $("multB").textContent = multiplier;
+
+  updateScores();
+}
+function updateScores(){
+  $("scoreA").textContent = scores.A;
+  $("scoreB").textContent = scores.B;
+}
+/* add/sub with anti-double-score */
+$("addA").onclick = ()=>{
+  if(lastCard && !usedCards[lastCard.id]){
+    const delta = lastCard.points * multiplier;
+    scores.A += delta; usedCards[lastCard.id] = "A"; updateScores();
+    stats.push({team:"A", round:roundIndex+1, answer:lastCard.answer, points:lastCard.points, m:multiplier, total:delta, cardId:lastCard.id, rank:lastCard.rank});
+  }
+};
+$("addB").onclick = ()=>{
+  if(lastCard && !usedCards[lastCard.id]){
+    const delta = lastCard.points * multiplier;
+    scores.B += delta; usedCards[lastCard.id] = "B"; updateScores();
+    stats.push({team:"B", round:roundIndex+1, answer:lastCard.answer, points:lastCard.points, m:multiplier, total:delta, cardId:lastCard.id, rank:lastCard.rank});
+  }
+};
+$("subA").onclick = ()=>{ if(lastCard){ scores.A = Math.max(0, scores.A - lastCard.points * multiplier); updateScores(); } };
+$("subB").onclick = ()=>{ if(lastCard){ scores.B = Math.max(0, scores.B - lastCard.points * multiplier); updateScores(); } };
+
+/* multiplier */
+[...$("multSeg").children].forEach(btn=>{
+  btn.onclick = ()=>{
+    [...$("multSeg").children].forEach(b=>b.classList.remove("active"));
+    btn.classList.add("active");
+    multiplier = parseInt(btn.dataset.m)||1;
+    $("multLabel").textContent = "x"+multiplier;
+    $("multA").textContent = multiplier; $("multB").textContent = multiplier;
+  }
+});
+
+/* navigation */
+$("prevQ").onclick = ()=>{ if(roundIndex>0){ roundIndex--; renderMonitor(); } };
+$("nextQ").onclick = ()=>{
+  if(roundIndex < data.rounds.length-1){ roundIndex++; renderMonitor(); }
+  else { showResult(); }
+};
+$("resetBoard").onclick = ()=>{ renderMonitor(); };
+$("finishGame").onclick = ()=> showResult();
+
+/* ================== RESULT ================== */
+let chartTotal, chartA, chartB;
+function showResult(){ switchView("result"); }
+function renderResult(){
+  // winner text
+  const winner = scores.A === scores.B ? "เสมอ" : (scores.A > scores.B ? data.teams.A : data.teams.B);
+  $("winner").textContent = `🏆 ผู้ชนะคือ ${winner}`;
+
+  // destroy previous charts if exists
+  [chartTotal, chartA, chartB].forEach(c=>{ try{c && c.destroy();}catch(e){} });
+
+  // Total chart
+  chartTotal = new Chart($("chartTotal"), {
+    type:"bar",
+    data:{
+      labels:[data.teams.A, data.teams.B],
+      datasets:[{label:"คะแนนรวม", data:[scores.A, scores.B], backgroundColor:[varCSS("--green"), varCSS("--blue")]}]
+    },
+    options:{plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true}}}
+  });
+
+  // Team A detailed answers
+  const aStats = stats.filter(s=>s.team==="A");
+  chartA = new Chart($("chartA"), {
+    type:"bar",
+    data:{
+      labels:aStats.map(s=>`ร${s.round}:${s.answer}`),
+      datasets:[{label:`คำตอบที่ทีม ${data.teams.A} ได้`, data:aStats.map(s=>s.total), backgroundColor:varCSS("--green")}]
+    },
+    options:{plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true}}}
+  });
+
+  // Team B detailed answers
+  const bStats = stats.filter(s=>s.team==="B");
+  chartB = new Chart($("chartB"), {
+    type:"bar",
+    data:{
+      labels:bStats.map(s=>`ร${s.round}:${s.answer}`),
+      datasets:[{label:`คำตอบที่ทีม ${data.teams.B} ได้`, data:bStats.map(s=>s.total), backgroundColor:varCSS("--blue")}]
+    },
+    options:{plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true}}}
+  });
+
+  // details buttons
+  $("btnShowA").onclick = ()=> showDetails("A");
+  $("btnShowB").onclick = ()=> showDetails("B");
+  $("btnExport").onclick = exportStats;
+  $("btnPlayAgain").onclick = ()=>{ switchView("start"); };
+}
+function showDetails(team){
+  const div = $("teamDetails");
+  const isA = team === "A";
+  const tname = isA ? data.teams.A : data.teams.B;
+  const arr = stats.filter(s=>s.team===team);
+  if(arr.length===0){ div.innerHTML = `<div class="details center">ยังไม่มีสถิติของทีม ${tname}</div>`; return; }
+  div.innerHTML = `<h3 class="center">รายละเอียดทีม ${tname}</h3>` +
+    arr.map(s=>`<div class="details">รอบ ${s.round} • อันดับ ${s.rank} • “${escapeHTML(s.answer)}” → +${s.points} × x${s.m} = <b>${s.total}</b></div>`).join("");
+}
+function exportStats(){
+  const obj = {teams:data.teams, scores, stats};
+  const blob = new Blob([JSON.stringify(obj, null, 2)], {type:"application/json"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = "wiang-4x4-stats.json"; a.click();
+  URL.revokeObjectURL(url);
+}
+function openRules(){
+  document.getElementById("rulesModal").classList.add("show");
+}
+function closeRules(){
+  document.getElementById("rulesModal").classList.remove("show");
+}
+/* ================== Utils ================== */
+function varCSS(name){ return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+function escapeHTML(s){ return (s||"").replace(/[&<>"']/g, m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m])); }
+
+// Initial renders
+renderAdmin();
+renderMonitor();
+switchView("start");
+</script>
+</body>
+</html>
